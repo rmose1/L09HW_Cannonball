@@ -5,6 +5,24 @@ import pandas as pd
 import streamlit as st
 import random
 
+class Print_Iface:
+    def __init__(self):
+        pass
+
+    def plot(self, xs, ys):
+        df = pd.DataFrame({"x": xs, "y": ys})
+
+        chart = (
+            alt.Chart(df)
+            .mark_line()
+            .encode(
+                x=alt.X("x:Q", scale=alt.Scale(domain=[0, 200]), title="Distance (m)"),
+                y=alt.Y("y:Q", scale=alt.Scale(domain=[0, 100]), title="Height (m)")
+            )
+            .properties(width=700, height=400)
+        )
+
+        st.altair_chart(chart, use_container_width=True)
 
 ## Represent a cannonball, tracking its position and velocity.
 #
@@ -17,6 +35,7 @@ class Cannonball:
         self._y = 0
         self._vx = 0
         self._vy = 0
+        self.printer = Print_Iface()   # HAS-A relationship
 
     ## Move the cannon ball, using its current velocities.
     #  @param sec the amount of time that has elapsed.
@@ -65,11 +84,17 @@ def run_app():
     st.title("Cannonball Trajectory")
 
     angle_deg = st.number_input(
-        "Starting angle (degrees)", min_value=0.0, max_value=90.0, value=45.0
-    )
+    "Starting angle (degrees)", min_value=0.0, max_value=90.0, value=45.0
+)
+
     velocity = st.selectbox("Initial velocity", options=[15, 25, 40], index=1)
 
-    gravity_options = {"Earth": 9.81}
+    ball_type = st.selectbox("Ball Type", ["Normal", "Crazy"])
+
+    gravity_options = {
+        "Earth": 9.81,
+        "Moon": 1.62
+        }
     gravity_name = st.selectbox("Gravity", options=list(gravity_options.keys()), index=0)
     gravity = gravity_options[gravity_name]
     step = .1
@@ -79,26 +104,26 @@ def run_app():
 
     if simulate:
         angle_rad = radians(angle_deg)
-        ball = Cannonball(0)
+        if ball_type == "Crazy":
+            ball = Crazyball(0)
+        else:
+            ball = Cannonball(0)
         xs, ys = ball.shoot(angle_rad, velocity, gravity, step)
 
         if not xs:
             st.warning("No trajectory points were generated.")
             return
 
-        df = pd.DataFrame({"x": xs, "y": ys})
+        ball.printer.plot(xs, ys)
 
-        chart = (
-            alt.Chart(df)
-            .mark_line()
-            .encode(
-                x=alt.X("x:Q", scale=alt.Scale(domain=[0, 200]), title="Distance (m)"),
-                y=alt.Y("y:Q", scale=alt.Scale(domain=[0, 100]), title="Height (m)")
-            )
-            .properties(width=700, height=400)
-        )
-        st.altair_chart(chart, use_container_width=True)
+class Crazyball(Cannonball):
+    def move(self, sec, grav):
+        super().move(sec, grav)
 
+        if self.getX() < 400:
+            rand_q = random.randrange(0, 10)
+            self._x += rand_q
+            self._y += rand_q
 
 if __name__ == "__main__":
     run_app()
